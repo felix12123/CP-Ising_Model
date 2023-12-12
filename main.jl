@@ -10,9 +10,9 @@ function installed()
 	return installs
 end
 # Check if packages are installed, else install them
-Packages = ["Statistics", "Plots"]
+Packages = ["Plots", "Statistics", "LsqFit", "BenchmarkTools", "Random"]
+installed_Packages = keys(installed())
 for Package in Packages
-	installed_Packages = keys(installed())
 	if !(Package in installed_Packages)
 		try 
 			eval(Meta.parse("using $Package"))
@@ -26,6 +26,17 @@ for Package in Packages
 	end
 end
 
+include("src/structs.jl")
+include("src/phys_calc.jl")
+include("src/solver.jl")
 include("tasks/A1.jl")
+include("test/runtests.jl")
 
-A1()
+println("Threads: ", Threads.nthreads())
+
+tests();
+
+
+# @time A1()
+
+# @benchmark compute_pi(1_000_000)
