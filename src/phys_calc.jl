@@ -3,19 +3,15 @@ function energy(sys::IsiSys)
 	
 
 	if all(iszero, sys.h)
-		for ij1 in CartesianIndices(sys.grid)
-			for ij2 in CartesianIndices(sys.J)
-				index2 = mod.(Tuple(ij1 + ij2) .- div(size(sys.J, 1)+1, 2), sys.L) .+ 1 |> CartesianIndex
-				E += sys.J[ij2] .* (sys.grid[ij1]*2 - 1) * (sys.grid[index2]*2 - 1)
-			end
+		for (i, j) in Tuple.(CartesianIndices(sys.grid))
+			region = @view sys.grid[mod.((i-1:i+1) .- 1, sys.L) .+ 1, mod.((j-1:j+1) .- 1, sys.L) .+ 1]
+			E += sys.grid[i, j] * sum(region .* sys.J)
 		end
 	else
-		for ij1 in CartesianIndices(sys.grid)
-			E += sys.h[ij1] * (sys.grid[ij1]*2 - 1)
-			for ij2 in CartesianIndices(sys.J)
-				index2 = mod.(Tuple(ij1 + ij2) .- div(size(sys.J, 1)+1, 2), sys.L) .+ 1 |> CartesianIndex
-				E += sys.J[ij2] .* (sys.grid[ij1]*2 - 1) * (sys.grid[index2]*2 - 1)
-			end
+		for (i, j) in Tuple.(CartesianIndices(sys.grid))
+			region = @view sys.grid[((i-1):(i+1)) .% sys.L,((j-1):(j+1)) .% sys.L]
+			E += sys.grid[i, j] * sum(region .* sys.J)
+			E += sys.h[i, j] * (sys.grid[i, j]*2 - 1)
 		end
 	end
 

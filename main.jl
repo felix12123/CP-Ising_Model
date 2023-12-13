@@ -34,7 +34,9 @@ include("test/runtests.jl")
 
 println("Threads: ", Threads.nthreads())
 
-tests();
+runtests();
+
+nothing
 
 
 # @time A1()

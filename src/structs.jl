@@ -8,6 +8,7 @@ mutable struct IsiSys
 	L::Int
 	J::Matrix{Float64}
 	h::Matrix{Float64}
+	# function for implicit definition. select from predefined states.
 	function IsiSys(L::Int, state::Symbol=:rand, J=undef, h=0.0)
 		if J==undef
 			J = [0 1 0; 1 0 1; 0 1 0]
@@ -32,7 +33,8 @@ mutable struct IsiSys
 		end
 		
 		new(grid, L, J, h)
-	end
+	end 
+	# function for explicit definition
 	function IsiSys(grid::BitMatrix, J=undef, h=0.0) where T <: Number
 		if J==undef
 			J = [0 1 0; 1 0 1; 0 1 0]

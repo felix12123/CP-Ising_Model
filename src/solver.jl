@@ -6,17 +6,18 @@ function split_grid(sys::IsiSys)::NTuple{2, Vector{CartesianIndex}}
 
 	all_indices = CartesianIndices(sys.grid) |> collect
 	inds1 = similar(all_indices, sys.L^2 ÷ 2)
+	counter1 = 1
 	inds2 = similar(all_indices, sys.L^2 ÷ 2)
+	counter2 = 1
 
-	for i in axes(all_indices, 1), j in axes(all_indices, 2)
-		if !iseven(i+j)
-			println("$(i+j) is odd, so $(all_indices[i]) is put into inds1[$(i÷2+1)]")
-			inds1[(i+j)÷2 + 1] = all_indices[i,j]
+	for i in eachindex(all_indices)
+		if (i-1)÷sys.L + i%sys.L |> iseven
+			inds1[counter1] = all_indices[i]
+			counter1 += 1
 		else
-			inds2[(i+j)÷2] = all_indices[i,j]
+			inds2[counter2] = all_indices[i]
+			counter2 += 1
 		end
 	end
 	return (inds1, inds2)
 end
-
-
