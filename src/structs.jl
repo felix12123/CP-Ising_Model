@@ -6,21 +6,11 @@ end
 mutable struct IsiSys
 	grid::BitMatrix
 	L::Int
-	J::Matrix{Float64}
-	h::Matrix{Float64}
+	J::Float64
+	h::Float64
 	# function for implicit definition. select from predefined states.
-	function IsiSys(L::Int, state::Symbol=:rand, J=undef, h=0.0)
-		if J==undef
-			J = [0 1 0; 1 0 1; 0 1 0]
-		elseif isa(J, Number)
-			J = float(J) .* [0 1 0; 1 0 1; 0 1 0]
-		end
-	
-		if isa(h, Number)
-			h = fill(h, (L, L))
-		end
-		
-		J = convert(Matrix{Float64}, J)
+	function IsiSys(L::Int; state::Symbol=:rand, J::Float64=1.0, h=0.0)
+		h = convert(Float64, h)
 	
 		if state == :rand
 			grid = bitrand(L, L)
@@ -28,6 +18,8 @@ mutable struct IsiSys
 			grid = trues(L, L)
 		elseif state == :down
 			grid = falses(L, L)
+		elseif state == :alternating
+			grid = reshape(iseven.(1:L^2), (L, L)) |> BitMatrix
 		else
 			error("No valid state given: $state. (valid states: :rand, :up, :down)")
 		end
@@ -35,18 +27,8 @@ mutable struct IsiSys
 		new(grid, L, J, h)
 	end 
 	# function for explicit definition
-	function IsiSys(grid::BitMatrix, J=undef, h=0.0) where T <: Number
-		if J==undef
-			J = [0 1 0; 1 0 1; 0 1 0]
-		elseif isa(J, Number)
-			J = float(J) .* [0 1 0; 1 0 1; 0 1 0]
-		end
-	
-		if isa(h, Number)
-			h = fill(h, size(grid))
-		end
-		
-		J = convert(Matrix{Float64}, J)
+	function IsiSys(;grid::BitMatrix, J::Float64=1.0, h=0.0)
+		h = convert(Float64, h)	
 	
 		new(grid, size(grid, 1), J, h)
 	end

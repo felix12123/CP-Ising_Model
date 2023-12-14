@@ -1,25 +1,29 @@
-function compute_pi(N::Int)::Float64
-	# counter = 0
-	# @turbo for i in 1:N
-	# 	xy = rand(2)
-	# 	if sum(xy .^ 2) < 1
-	# 		counter += 1
-	# 	end
-	# end
-	# return counter/N*4
 
-	threads = Threads.nthreads()
-	counters = zeros(threads)
-	Threads.@threads for i in 1:N
-		xy = rand(2)
-		if sum(xy .^ 2) < 1
-			counters[Threads.threadid()] += 1
+function compute_pi(N::Int)::Float64
+	num_threads::Int=Threads.nthreads()
+	counters = zeros(Int, num_threads)
+
+	function worker_thread(thread_id)
+		local_counter = 0
+		local_rng = MersenneTwister(thread_id + 1)  # Verwende einen eigenen Zufallszahlengenerator pro Thread
+
+		for _ in 1:N ÷ num_threads
+			x, y = rand(local_rng), rand(local_rng)
+			local_counter += x^2 + y^2 <= 1.0
 		end
+
+		counters[thread_id] = local_counter
 	end
-	return sum(counters) / N * 4
-	
-	# return sum(sum(rand(N, 2) .^ 2, dims=2) .< 1) / N * 4
-	
+
+	# Starte die Worker-Threads
+	Threads.@threads for i in 1:num_threads
+		worker_thread(i)
+	end
+
+	# Summiere die Ergebnisse der einzelnen Threads auf
+	counter = sum(counters)
+
+	return 4 * counter / N
 end
 
 
@@ -45,7 +49,7 @@ function A1_1()
 	stds = std(pis, dims=2)
 	mean_errors = mean(abs.(pis .- pi) ./ pi, dims=2)
 	
-
+	
 	plt2 = plot(iterations, mean_errors, xscale=:log10, yscale=:log10, title="Avg. Accuracy of MC pi Algorithm", label="", xlabel="Iterations", dpi=300, ylabel="mean relative error")
 	savefig(plt2, "media/A1_MC_pi_mean_error")
 end

@@ -21,3 +21,27 @@ function split_grid(sys::IsiSys)::NTuple{2, Vector{CartesianIndex}}
 	end
 	return (inds1, inds2)
 end
+
+
+
+# Multihit Metropolis =========================================================
+
+# updates elements of "sys" that are in "inds"
+function multihit_step!(sys::IsiSys, β::Float64, inds::Vector{NTuple{2, Int}}, N_try::Int=1)
+	
+end
+
+# function multihit_metropols_algo(sys::IsiSys, β:Float64, N::Int=1_000, N_try::Int=3)
+# 	threads = Threads.nthreads()
+# 	sys = deepcopy(sys) # passed system should not be changed
+
+# 	function thread_worker(thread, )
+		
+# 	end
+
+# 	for i in 1:N
+# 		inds1, inds2 = split_grid(sys)
+# 		for thread in 1:threads
+# 			inds = threat_inds(inds1, thread) # to be implemented
+			
+# end

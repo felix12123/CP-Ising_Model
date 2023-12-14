@@ -10,7 +10,7 @@ function installed()
 	return installs
 end
 # Check if packages are installed, else install them
-Packages = ["Plots", "Statistics", "LsqFit", "BenchmarkTools", "Random"]
+Packages = ["Plots", "Statistics", "LsqFit", "BenchmarkTools", "Random", "QuadGK", "ThreadsX"]
 installed_Packages = keys(installed())
 for Package in Packages
 	if !(Package in installed_Packages)
@@ -36,7 +36,8 @@ println("Threads: ", Threads.nthreads())
 
 runtests();
 
-nothing
+sys1 = IsiSys(16)
+
 
 
 # @time A1()

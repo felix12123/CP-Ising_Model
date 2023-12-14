@@ -3,11 +3,11 @@ using Test
 
 function runtests()
 	sys1 = IsiSys(16)
-	sys2 = IsiSys(8, :up)
-	sys3 = IsiSys(8, :down)
+	sys2 = IsiSys(8, state=:up)
+	sys3 = IsiSys(8, state=:down)
 	grid4 = iseven.(1:16) |> shuffle
 	grid4 = reshape(grid4, (4, 4)) |> BitMatrix
-	sys4 = IsiSys(grid4)
+	sys4 = IsiSys(grid=grid4)
 	sys5 = IsiSys(2)
 	
 	@testset "Ising System Tests" begin
@@ -21,6 +21,14 @@ function runtests()
 			@test magnetisation(sys2) == 1
 			@test magnetisation(sys3) == -1
 			@test magnetisation(sys4) == 0
+			L=4; sys1 = IsiSys(L)
+			Z = partition_sum_Z(sys1, 0.45)
+			prob_sum = 0
+			for i in 0:2^(L^2)-1
+				prob_sum += P_β(nth_config(sys1, i), 0.45, Z, sys1)
+			end
+			@test prob_sum ≈ 1
+
 		end
 		@testset "solver utils" begin
 			inds1 = [CartesianIndex(1,1), CartesianIndex(2,2)]
