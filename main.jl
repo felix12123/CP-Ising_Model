@@ -30,13 +30,60 @@ include("src/structs.jl")
 include("src/phys_calc.jl")
 include("src/solver.jl")
 include("tasks/A1.jl")
+include("tasks/A3.jl")
 include("test/runtests.jl")
 
 println("Threads: ", Threads.nthreads())
 
 runtests();
 
-sys1 = IsiSys(16)
+
+# Kleine Tests ====================================================================================
+
+function steps_test()
+	# Initialisiere System
+	sys1 = IsiSys(16)
+	sys2 = deepcopy(sys1)
+	sys3 = IsiSys(16)
+	sys4 = deepcopy(sys3)
+	# Indexmenge
+	inds = vec(Tuple.(CartesianIndices(sys1.grid)))
+	# Führe Multihit mehrfach aus
+	for i in 1:10000
+		multihit_step!(sys1, 0.4406868, inds, 10)
+		heatbath_step!(sys3, 0.4406868, inds, 10)
+	end
+	# counter für veränderte sowie unveränderte Spins
+	cg   = 0
+	cug  = 0
+	cg1  = 0
+	cug1 = 0
+	# Evaluation: Hat sich was verändert?
+	for index in CartesianIndices(sys1.grid)
+		sys1.grid[index] == sys2.grid[index] ? cg += 1 : cug += 1
+		sys3.grid[index] == sys2.grid[index] ? cg1 += 1 : cug1 += 1
+	end
+	# Ausgabe
+	g  = sys1 == sys2
+	g1 = sys3 == sys4
+	print("\n\n******************************************************")
+	!g ? println("*") : nothing
+	println("Die Systeme nach Multihit-Metropolis sind gleich: ", g)
+	print("======================================================")
+	!g ? println("=") : nothing
+	println("Unveränderte Einträge: ", cg)
+	println("Veränderte Einträge  : ", cug)
+	println("")
+	print("\n\n*******************************************")
+	!g1 ? println("*") : nothing
+	println("Die Systeme nach Heatbath sind gleich: ", g1)
+	print("===========================================")
+	!g1 ? println("=") : nothing
+	println("Unveränderte Einträge: ", cg1)
+	println("Veränderte Einträge  : ", cug1)
+end
+
+A3a()
 
 
 

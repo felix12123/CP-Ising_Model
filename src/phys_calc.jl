@@ -50,7 +50,7 @@ end
 function spinchange_energy(sys::IsiSys, ind::NTuple{2, Int})
 	i, j = ind
 	region = @view sys.grid[mod.((i-1:i+1) .- 1, sys.L) .+ 1, mod.((j-1:j+1) .- 1, sys.L) .+ 1]
-	J_mat = J .* [0 1 0; 1 0 1; 0 1 0]
+	J_mat = sys.J .* [0 1 0; 1 0 1; 0 1 0]
 	
 	# energy for current spin
 	E  = 0.0
@@ -150,4 +150,24 @@ function MC_mean_val(G::Function, sys::IsiSys, β)
 		O += G(ω, sys) * P_β(ω, β, Z, sys)
 	end
 	return O
+end
+
+function abs_mag(sys::IsiSys)
+	m = 0.0
+	for ij in CartesianIndices(sys.grid)
+		m += abs(sys.grid[ij]*2 - 1)
+	end
+	return m / sys.L^2
+end
+
+function mag_sq(sys::IsiSys)
+	m = 0.0
+	for ij in CartesianIndices(sys.grid)
+		m += (sys.grid[ij]*2 - 1)^2
+	end
+	return m / sys.L^2
+end
+
+function mag_sq_ana(sys::IsiSys, β::Float64)
+	(1 - sinh(2 * β * sys.J) ^ (-4)) ^ (1//4)
 end
