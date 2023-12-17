@@ -1,17 +1,17 @@
 # splits the grid into 2 subgrids, wich can be parallised. returns 2 sets of indices
-function split_grid(sys::IsiSys)#::NTuple{2, Vector{CartesianIndex}}
+function split_grid1(sys::IsiSys)#::NTuple{2, Vector{CartesianIndex}}
 	if !iseven(sys.L)
 		error("N has to be even in order to split the grid. N is $(sys.L)")
 	end
 
-	all_indices = CartesianIndices(sys.grid) |> collect .|> Tuple
+	all_indices = Iterators.product(1:sys.L, 1:sys.L) |> collect
 	inds1 = similar(all_indices, sys.L^2 ÷ 2)
 	counter1 = 1
 	inds2 = similar(all_indices, sys.L^2 ÷ 2)
 	counter2 = 1
-
+	
 	for i in eachindex(all_indices)
-		if (i-1)÷sys.L + i%sys.L |> iseven
+		if (i-1)÷sys.L + (i-1)%sys.L |> iseven
 			inds1[counter1] = all_indices[i]
 			counter1 += 1
 		else
@@ -22,8 +22,33 @@ function split_grid(sys::IsiSys)#::NTuple{2, Vector{CartesianIndex}}
 	return (inds1, inds2)
 end
 
+# slower
+function split_grid2(sys::IsiSys)
+	all_indices = Iterators.product(1:sys.L, 1:sys.L) |> collect
+	f(t) = sum(t) % 2 == 0
+	
+	return (filter(f, all_indices), filter(x -> !f(x), all_indices))
+end
 
-
+# fastest method
+function split_grid(sys::IsiSys)
+	inds1 = Vector{Tuple{Int, Int}}(undef, 0)
+	append!(inds1, Iterators.product(1:2:sys.L, 2:2:sys.L))
+	append!(inds1, reverse.(inds1))
+	
+	inds2 = Vector{Tuple{Int, Int}}(undef, 0)
+	append!(inds2, Iterators.product(1:2:sys.L, 1:2:sys.L) |> collect |> vec)
+	append!(inds2, Iterators.product(2:2:sys.L, 2:2:sys.L) |> collect |> vec)
+	
+	return (inds1, inds2)
+	# inds1 = Vector{Tuple{Int, Int}}(undef, sys.L^2÷2)
+	# inds1[1:sys.L^2÷2] .= Iterators.product(1:2:sys.L, 2:2:sys.L)
+	# inds1[sys.L^2÷2+1:end] .= reverse.(inds1[1:sys.L^2÷2])
+	
+	# inds2 = Vector{Tuple{Int, Int}}(undef, sys.L^2÷2)
+	# inds2[1:sys.L^2÷2] .= Iterators.product(1:2:sys.L, 1:2:sys.L) |> collect |> vec
+	# inds2[1+sys.L^2÷2:end] .= Iterators.product(2:2:sys.L, 2:2:sys.L) |> collect |> vec
+end
 # Multihit Metropolis ============================================================================================
 
 # updates elements of "sys" that are in "inds"
@@ -39,19 +64,19 @@ function multihit_step!(sys::IsiSys, β::Float64, inds::Vector{NTuple{2, Int}}, 
 			s1 = rand((0,1))										# Wähle rdm neue Spinausrichtung
 			dH = spinchange_energy(sys, ij) 					# Berechne Energieänderung bei Spininversion
 
-			if (s1 == sys.grid[CartesianIndex(i,j)] || dH >= 0) 					# (Neue und alte Ausrichtung von Spin gleich) ⩔ (Inverison -> Energieerhöhing)
-				r = rand(Float64)								# Wähle r random zwischen 1 und 0
-				if r < exp(-β * dH)	
-					sys.grid[CartesianIndex(i,j)] = s1
+			if (s1 == sys.grid[i, j] || dH >= 0) 					# (Neue und alte Ausrichtung von Spin gleich) ⩔ (Inverison -> Energieerhöhing)
+				if rand(Float64) < exp(-β * dH)	
+					sys.grid[i, j] = s1
 				else
 					continue
 				end
 			else												# Energieabsenkung durch Spininversion
-				sys.grid[CartesianIndex(i,j)] = s1
+				sys.grid[i, j] = s1
 			end
 		end
 	end
 end
+multihit_step!(sys::IsiSys, β::Float64, N_try::Int=1) = multihit_step!(sys, β, CartesianIndices(sys.grid) |> collect |> vec .|> Tuple, N_try)
 
 
 
@@ -79,7 +104,6 @@ function heatbath_step!(sys::IsiSys, β::Float64, inds::Vector{NTuple{2, Int}}, 
 		(r < q) ? sys.grid[CartesianIndex(i,j)] = true : sys.grid[CartesianIndex(i,j)] = false
 	end
 end
-multihit_step!(sys::IsiSys, β::Float64, N_try::Int=1) = multihit_step!(sys, β, CartesianIndices(sys.grid) |> collect |> vec .|> Tuple, N_try)
 
 function equal_partition(n::Int64, parts::Int64)
 	if n < parts
@@ -93,40 +117,40 @@ function equal_partition(V::Vector, parts::Int64)
 	return [V[range] for range in ranges]
 end
 
-function multihit_metropols_algo(sys::IsiSys, β::Float64, N::Int=1_000, N_try::Int=3)
-	threads = Threads.nthreads()
-	sys = deepcopy(sys) # passed system should not be changed
+function solve_IsiSys(sys::IsiSys, stepper::Function, β::Float64, N::Int=1_000, N_try::Int=3)
+	threads = min(Threads.nthreads(), *(size(sys.grid)...) ÷	2)
+	sys = deepcopy(sys) # passed system should not be changed	
+	inds = Vector{Vector{NTuple{2, Int}}}
 	
-	# Each thread gets 1/threads of the indices to work on:
-	function thread_worker(thread, inds)
-		multihit_step!(sys, β, inds, N_try)
-	end
-	
+	energy_dens_i   = zeros(Float64, N)
+	magnetisation_i = zeros(Float64, N)
+	spec_heat_i     = zeros(Float64, N)
 	for i in 1:N
-		inds1, inds2 = split_grid(sys)
-		inds = equal_partition(inds1, threads)
-		for thread in 1:threads
-			multihit_step!(sys, β, inds[thread], N_try) #could create problems, due to simultaneous writing on sys.grid.
+		inds1, inds2 = split_grid(sys) # we have to split the grid, to avoid a data race
+		inds = equal_partition(inds1, threads) # the grid is split into "threads" roughly evenly sized chunks for each thread to update 
+		Threads.@threads for thread in 1:threads
+			stepper(sys, β, inds[thread], N_try) #could create problems, due to simultaneous writing on sys.grid.
 		end
 		
 		inds = equal_partition(inds2, threads)
 		for thread in 1:threads
-			multihit_step!(sys, β, inds[thread], N_try) #could create problems, due to simultaneous writing on sys.grid.
+			stepper(sys, β, inds[thread], N_try) #could create problems, due to simultaneous writing on sys.grid.
 		end
+		energy_dens_i[i] = energy_dens(sys)
+		magnetisation_i[i] = magnetisation(sys)
+		# spec_heat_i[i] = spec_heat(sys) # needs to be implemented TODO
 	end
+	return sys, energy_dens_i, magnetisation_i
 end
-function thread_worker(thread, all_inds)
-	range = (1 + round(Int, (thread-1) * size(all_inds, 1) / threads)):round(Int, (size(all_inds, 1)*thread) / threads)
-	println(range)
-	inds = all_inds[range]
-	return inds
-end
+
+
+
 
 function multihit_metropols_algo_slow(sys::IsiSys, β::Float64, N::Int=1_000, N_try::Int=3)
 	sys = deepcopy(sys) # passed system should not be changed
-	energy_dens_i   = zeros(Float64, N+1)
-	magnetisation_i = zeros(Float64, N+1)
-	spec_heat_i     = zeros(Float64, N+1)
+	energy_dens_i   = zeros(Float64, N)
+	magnetisation_i = zeros(Float64, N)
+	spec_heat_i     = zeros(Float64, N)
 	for i in 1:N
 		multihit_step!(sys, β, N_try)
 		energy_dens_i[i] = energy_dens(sys)

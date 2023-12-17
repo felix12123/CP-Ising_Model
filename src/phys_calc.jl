@@ -3,10 +3,16 @@
 # calculates the total energy of a system
 function energy(sys::IsiSys)
 	E = 0.0
-	J = sys.J .* [0 1 0; 1 0 1; 0 1 0]
+	L = sys.L
 	for (i, j) in Tuple.(CartesianIndices(sys.grid))
-		region = @view sys.grid[mod.((i-1:i+1) .- 1, sys.L) .+ 1, mod.((j-1:j+1) .- 1, sys.L) .+ 1]
-		E += (2*sys.grid[i, j] - 1) * sum((region .* 2 .- 1) .* J)
+		if (i-1)*(j-1)*(i-L)*(j-L)==0
+			ind_mod(i, N) = mod(i-1, N)+1
+			neighbour_sum = sys.J * (sys.grid[ind_mod(i+1, L), j] + sys.grid[i, ind_mod(j+1, L)] + sys.grid[ind_mod(i-1, L), j] + sys.grid[i, ind_mod(j-1, L)]) * 2 - 4
+		else
+			neighbour_sum = sys.J * (sys.grid[i+1, j] + sys.grid[i, j+1] + sys.grid[i-1, j] + sys.grid[i, j-1]) * 2 - 4
+		end
+
+		E += (2*sys.grid[i, j] - 1) * neighbour_sum
 		E += sys.h * (sys.grid[i, j]*2 - 1)
 	end
 	return E
@@ -48,15 +54,34 @@ end
 
 # calculates the difference in energy for a spin inversion
 function spinchange_energy(sys::IsiSys, ind::NTuple{2, Int})
+	L = sys.L
+	i, j = ind
+	if (i-1)*(j-1)*(i-L)*(j-L)==0
+		ind_mod(i, N) = mod(i-1, N)+1
+		neighbour_sum = sys.J * (sys.grid[ind_mod(i+1, L), j] + sys.grid[i, ind_mod(j+1, L)] + sys.grid[ind_mod(i-1, L), j] + sys.grid[i, ind_mod(j-1, L)]) * 2 - 4
+	else
+		neighbour_sum = sys.J * (sys.grid[i+1, j] + sys.grid[i, j+1] + sys.grid[i-1, j] + sys.grid[i, j-1]) * 2 - 4
+	end
+	# energy for current spin
+	E  = 0.0
+	E -= (2*sys.grid[i, j] - 1) * neighbour_sum
+	E -= (2*sys.grid[i, j] - 1) * neighbour_sum
+	E -= sys.h * (sys.grid[i, j]*2 - 1)
+
+	# for different spin:
+	E += (2*!sys.grid[i, j] - 1) * neighbour_sum
+	E += sys.h * (!sys.grid[i, j]*2 - 1)
+end
+function spinchange_energy_old(sys::IsiSys, ind::NTuple{2, Int})
 	i, j = ind
 	region = @view sys.grid[mod.((i-1:i+1) .- 1, sys.L) .+ 1, mod.((j-1:j+1) .- 1, sys.L) .+ 1]
 	J_mat = sys.J .* [0 1 0; 1 0 1; 0 1 0]
-	
+
 	# energy for current spin
 	E  = 0.0
 	E -= (2*sys.grid[i, j] - 1) * sum((region .* 2 .- 1) .* J_mat)
 	E -= sys.h * (sys.grid[i, j]*2 - 1)
-	
+
 	# for different spin:
 	E += (2*!sys.grid[i, j] - 1) * sum((region .* 2 .- 1) .* J_mat)
 	E += sys.h * (!sys.grid[i, j]*2 - 1)
@@ -67,12 +92,12 @@ function spin_energy(sys::IsiSys, ind::NTuple{2, Int})
 	i, j = ind
 	region = @view sys.grid[mod.((i-1:i+1) .- 1, sys.L) .+ 1, mod.((j-1:j+1) .- 1, sys.L) .+ 1]
 	J_mat = J .* [0 1 0; 1 0 1; 0 1 0]
-	
+
 	# energy for current spin
 	E  = 0.0
 	E += (2*sys.grid[i, j] - 1) * sum((region .* 2 .- 1) .* J_mat)
 	E += sys.h * (sys.grid[i, j]*2 - 1)
-	
+
 	return E
 end
 

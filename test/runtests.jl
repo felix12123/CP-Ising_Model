@@ -31,8 +31,8 @@ function runtests()
 
 		end
 		@testset "solver utils" begin
-			inds1 = [CartesianIndex(1,1), CartesianIndex(2,2)]
-			inds2 = [CartesianIndex(1,2), CartesianIndex(2,1)]
+			inds1 = [(1,1), (2,2)]
+			inds2 = [(1,2), (2,1)]
 			value1 = split_grid(sys5)
 			test1 = (Set(value1[1]) == Set(inds1) && Set(value1[2]) == Set(inds2)) || (Set(value1[1]) == Set(inds2) && Set(value1[2]) == Set(inds1))
 			@test test1

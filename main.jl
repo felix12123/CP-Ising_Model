@@ -10,7 +10,7 @@ function installed()
 	return installs
 end
 # Check if packages are installed, else install them
-Packages = ["Plots", "Statistics", "LsqFit", "BenchmarkTools", "Random", "QuadGK", "ThreadsX"]
+Packages = ["Plots", "Statistics", "BenchmarkTools", "Random", "QuadGK", "ThreadsX", "ProfileView"]
 installed_Packages = keys(installed())
 for Package in Packages
 	if !(Package in installed_Packages)
@@ -32,6 +32,7 @@ include("src/solver.jl")
 include("tasks/A1.jl")
 include("tasks/A3.jl")
 include("test/runtests.jl")
+
 
 println("Threads: ", Threads.nthreads())
 
@@ -83,9 +84,9 @@ function steps_test()
 	println("Veränderte Einträge  : ", cug1)
 end
 
-A3a()
-
-
+# A3a()
+sys1 = IsiSys(128)
+# ProfileView.@profview solve_IsiSys(sys1, multihit_step!, 0.4406868, 100)
 
 # @time A1()
 
