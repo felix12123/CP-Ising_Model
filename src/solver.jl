@@ -52,20 +52,31 @@ end
 # Multihit Metropolis ============================================================================================
 
 # updates elements of "sys" that are in "inds"
-function multihit_step!(sys::IsiSys, β::Float64, inds::Vector{NTuple{2, Int}}, N_try::Int=1)
+function multihit_step!(sys::IsiSys, β::Float64, inds::Any, N_try::Int=1)
+	lookup_arg::Vector{Float64} = []
+	lookup_exp::Vector{Float64} = []
 	
+	# create random numbers for later use
+	L = sys.L
+
 	for ij in inds												# ∀ spins in Indexmenge
 
-		i = ij[1]
-		j = ij[2]
+		i, j = ij
 
 		for t in 1:N_try										# Multihit-Parameter
-
 			s1 = rand((0,1))										# Wähle rdm neue Spinausrichtung
 			dH = spinchange_energy(sys, ij) 					# Berechne Energieänderung bei Spininversion
 
 			if (s1 == sys.grid[i, j] || dH >= 0) 					# (Neue und alte Ausrichtung von Spin gleich) ⩔ (Inverison -> Energieerhöhing)
-				if rand(Float64) < exp(-β * dH)	
+				index = findfirst(x->x==-β*dH, lookup_arg)
+				if !isnothing(index)
+					exp_val = lookup_exp[index]
+				else
+					exp_val = exp(-β*dH)
+					append!(lookup_arg, [-β*dH, β*dH])
+					append!(lookup_exp, [exp_val, 1/exp_val])
+				end
+				if rand() < exp_val
 					sys.grid[i, j] = s1
 				else
 					continue
@@ -83,7 +94,7 @@ multihit_step!(sys::IsiSys, β::Float64, N_try::Int=1) = multihit_step!(sys, β,
 # Heatbath (2D) ==================================================================================================
 
 # updates elements of "sys" that are in "inds"
-function heatbath_step!(sys::IsiSys, β::Float64, inds::Vector{NTuple{2, Int}}, N_try::Int=1)
+function heatbath_step!(sys::IsiSys, β::Float64, inds, N_try::Int=1)
 	
 	for ij in inds
 
@@ -98,10 +109,9 @@ function heatbath_step!(sys::IsiSys, β::Float64, inds::Vector{NTuple{2, Int}}, 
 		k = β * (sys.J * δ + sys.h)
 		z = 2 * cosh(k)
 		q = exp(-k) / z
-		r = rand(Float64)
 
 		# je nach ergebnis der Berechnung wird die Spinposition gesetzt
-		(r < q) ? sys.grid[CartesianIndex(i,j)] = true : sys.grid[CartesianIndex(i,j)] = false
+		(rand() < q) ? sys.grid[CartesianIndex(i,j)] = true : sys.grid[CartesianIndex(i,j)] = false
 	end
 end
 
@@ -117,14 +127,16 @@ function equal_partition(V::Vector, parts::Int64)
 	return [V[range] for range in ranges]
 end
 
-function solve_IsiSys(sys::IsiSys, stepper::Function, β::Float64, N::Int=1_000, N_try::Int=3)
+function solve_IsiSys(sys::IsiSys, stepper::Function, β::Float64, N::Int=1_000, N_try::Int=3; eval_interv::Int=1)
 	threads = min(Threads.nthreads(), *(size(sys.grid)...) ÷	2)
 	sys = deepcopy(sys) # passed system should not be changed	
 	inds = Vector{Vector{NTuple{2, Int}}}
 	
-	energy_dens_i   = zeros(Float64, N)
-	magnetisation_i = zeros(Float64, N)
-	spec_heat_i     = zeros(Float64, N)
+	# containers for measurements
+	energy_dens_i   = zeros(Float64, ceil(Int, N/eval_interv))
+	magnetisation_i = zeros(Float64, ceil(Int, N/eval_interv))
+	spec_heat_i     = zeros(Float64, ceil(Int, N/eval_interv))
+
 	for i in 1:N
 		inds1, inds2 = split_grid(sys) # we have to split the grid, to avoid a data race
 		inds = equal_partition(inds1, threads) # the grid is split into "threads" roughly evenly sized chunks for each thread to update 
@@ -136,11 +148,15 @@ function solve_IsiSys(sys::IsiSys, stepper::Function, β::Float64, N::Int=1_000,
 		for thread in 1:threads
 			stepper(sys, β, inds[thread], N_try) #could create problems, due to simultaneous writing on sys.grid.
 		end
-		energy_dens_i[i] = energy_dens(sys)
-		magnetisation_i[i] = magnetisation(sys)
-		# spec_heat_i[i] = spec_heat(sys) # needs to be implemented TODO
+
+		# every "eval_interv" we save some measurements
+		if i%eval_interv == 0
+			energy_dens_i[ceil(Int, i / eval_interv)] = energy_dens(sys)
+			magnetisation_i[ceil(Int, i / eval_interv)] = magnetisation(sys)
+			# spec_heat_i[ceil(i, eval_interv)] = spec_heat(sys) # needs to be implemented TODO
+		end
 	end
-	return sys, energy_dens_i, magnetisation_i
+	return sys, energy_dens_i, magnetisation_i, spec_heat_i
 end
 
 

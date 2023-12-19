@@ -1,8 +1,3 @@
-mutable struct IsiProblem
-  
-end
-
-
 mutable struct IsiSys
 	grid::BitMatrix
 	L::Int

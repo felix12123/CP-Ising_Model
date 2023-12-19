@@ -7,53 +7,72 @@
 
 
 function A3a()
-    # 128x128 Gitter
-    system = IsiSys(16)
-    inds   = vec(Tuple.(CartesianIndices(system.grid)))
+	println("Task 3a ------------------------------------------")
+	N = 1000
+	sys = IsiSys(128)
+	βs = 0:0.05:1#; βs = βs[2:end-1]
+	ϵs = similar(βs)
+	ms = similar(βs)
+	cs = similar(βs)
+	
+	println("starting evaluation")
+	for i in eachindex(βs)
+		progress_bar(i/length(βs))
+		β = βs[i]
+		sys1, x1, x2, x3 = solve_IsiSys(sys, multihit_step!, β, N, 3, eval_interv=N)
+		ϵs[i] = x1[1]
+		ms[i] = x2[1] |> abs
+		cs[i] = x3[1]
+	end
 
-    # Führe x sweeps via multihit-metropolis aus
-    for i in 1:10_000
-        multihit_step!(system, 0.1, inds, 10)
-    end
+	println("creating plots")
+	if !isdir("media/A3")
+		mkdir("media/A3")
+	end
 
-    # Berechne nun die Größen, nach denen gefragt wurde
-    ϵ_density         = energy_dens(system)
-    # magnetisation_sys = magnetisation(system)
-    magnetisation_sys = MC_mean_val()
-    #specific_heat     = ...
+	plot(βs, ϵs, label="⟨ϵ⟩", title="Multihit Metropolis for L=$(sys.L)", xlabel="β", ylabel="⟨m⟩", dpi=300)
+	savefig("media/A3/A3a_energy_multi")
+
+	plot(βs, ms, label="⟨|m|⟩", title="Multihit Metropolis for L=$(sys.L)", xlabel="β", ylabel="⟨m⟩", dpi=300)
+	savefig("media/A3/A3a_abs_mag_multi")
+
+	plot(βs, cs, label="⟨c⟩", title="Multihit Metropolis for L=$(sys.L)", xlabel="β", ylabel="⟨m⟩", dpi=300)
+	savefig("media/A3/A3a_c_multi")	
 end
-
-
 
 function A3b()
-    # 128x128 Gitter
-    systems         = [IsiSys(4), IsiSys(8), IsiSys(32)]
-    physical_values = fill(zeros(2), 3) # fill(zeros(3), 3)
-    analyticals     = zeros(2) # zeros(3)
-    # 1: ϵ_density(/ies), 2: magnetisation(s), 3: specific_heat(s) pro Array für ein System aus systems
-    functions       = [mag_sq,     abs_mag] #,     specific_heat]
-    functions_ana   = [mag_sq_ana, abs_mag_ana] #, specific_heat_ana]
-    β               = 0.4406868
+	# simulation parameters
+	β = 0.4406868
+	Ls = [4, 8, 32]
+	N = 200_000
+	N_try = 3
 
-    # Führe x sweeps via multihit-metropolis aus
-    for i in 1:200_000
-        for system in systems
-            system = multihit_step!(system, β, inds, 10)
-        end
-    end
-
-    # Berechne nun die Größen, nach denen gefragt wurde
-    for values in physical_values
-        for i in 1:3
-            values[i] = functions[i](systems[i])
-            # values[i] = MC_mean_val(functions[i], systems[i], β)
-            # Wenn 4×4 System berechne noch analytische Werte:
-            if i == 1
-                analyticals[i] = functions_ana[i](systems[i])
-                # analyticals[i] = MC_mean_val(functions_ana[i], systems[i], β)
-            end
-        end
-    end
+	# containers for recorded data
+	ϵs      = zeros(Float64, size(Ls))
+	ms      = zeros(Float64, size(Ls))
+	m2s     = zeros(Float64, size(Ls))
+	ϵs_ana  = zeros(Float64, size(Ls))
+	ms_ana  = zeros(Float64, size(Ls))
+	m2s_ana = zeros(Float64, size(Ls))
+	
+	for i in eachindex(Ls)
+		sys = IsiSys(Ls[i])
+		sys1, _, _, _ = solve_IsiSys(sys, multihit_step!, β, N, N_try)
+		ϵs[i]      = energy_dens(sys1)
+		ms[i]      = magnetisation(sys1) |> abs
+		m2s[i]     = ms[i]^2
+		ϵs_ana[i]  = energy_dens_ana(sys1, β)
+		ms_ana[i]  = abs_mag_ana(sys1, β)
+		m2s_ana[i] = ms_ana[i]^2
+	end
+	plt1 = scatter(Ls, [ϵs, ϵs_ana], label=["simulated" "analytical"], xlabel="L", ylabel="ϵ", title="Energy density for β = 0.4406868")
+	plt2 = scatter(Ls, [ms, ms_ana], label=["simulated" "analytical"], xlabel="L", ylabel="|m|", title="Magnetisation for β = 0.4406868")
+	plt3 = scatter(Ls, [m2s, m2s_ana], label=["simulated" "analytical"], xlabel="L", ylabel="|m^2|", title="squared Magnetisation for β = 0.4406868")
+	println("magnetisation of systems: ", ms)
+	savefig(plt1, "media/A3/A3b_e")
+	savefig(plt2, "media/A3/A3b_m")
+	savefig(plt3, "media/A3/A3b_m2")
 end
+
 
 # Noch TODO: mag_sq(_ana), specific_heat()

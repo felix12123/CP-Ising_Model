@@ -10,12 +10,18 @@ function runtests()
 	sys4 = IsiSys(grid=grid4)
 	sys5 = IsiSys(2)
 	
+	grid6 = [0 0 1 0; 1 1 0 0; 1 0 0 0; 1 1 1 0] |> BitMatrix
+	sys6 = IsiSys(grid=grid6)
+	my_energy6 = 0
+	
+
 	@testset "Ising System Tests" begin
 		@testset "structs" begin
 			@test isa(sys1, IsiSys)
 		end
 	
 		@testset "physical calculations" begin
+			@test energy(sys6) == my_energy6
 			@test isa(energy(sys1), Float64)
 			@test -1 <= magnetisation(sys1) <= 1
 			@test magnetisation(sys2) == 1

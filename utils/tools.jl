@@ -1,4 +1,4 @@
-function progress_bar(progress::Number, width=displaysize(stdout)[2], keep_bar=true)
+function progress_bar(progress::Number; width=displaysize(stdout)[2], keep_bar=false)
 	progress = float(progress)
 	if progress < 0
 		progress = 0.0
@@ -10,7 +10,7 @@ function progress_bar(progress::Number, width=displaysize(stdout)[2], keep_bar=t
 		if keep_bar
 			println("\r" * "█"^round(Int, progress*width) * "━"^round(Int, (1-progress)*width))
 		else
-			print("\r" * "█"^round(Int, progress*width) * "━"^round(Int, (1-progress)*width))
+			print("\r" * " "^round(Int, progress*width) * "━"^round(Int, (1-progress)*width)*"\r")
 		end
 	else
 		print("\r" * "█"^round(Int, progress*width) * "━"^round(Int, (1-progress)*width))
@@ -27,4 +27,3 @@ function simulate_bar(secs)
 	end
 	progress_bar(1)
 end
-simulate_bar(1.0)
