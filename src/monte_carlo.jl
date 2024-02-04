@@ -60,7 +60,7 @@ function P_β(ω::BitMatrix, β::Float64, Z::Float64, sys::IsiSys)
 end
 
 # Calculates the mean value of an observable in the monte carlo model. (5.25)
-function MC_mean_val(G::Function, sys::IsiSys, β)
+function mean_val(G::Function, sys::IsiSys, β)
 	Z = partition_sum_Z(sys, β)
 	O = 0.0
 	for i in 0:2^(sys.L^2)-1
@@ -69,7 +69,7 @@ function MC_mean_val(G::Function, sys::IsiSys, β)
 	end
 	return O
 end
-function MC_mean_val_new(G::Function, sys::IsiSys, β)
+function mean_val_new(G::Function, sys::IsiSys, β)
 	Z = partition_sum_Z(sys, β)
 	threads = Threads.nthreads()
 	Os = zeros(Float64, threads)

@@ -27,14 +27,19 @@ function runtests()
 			@test magnetisation(sys2) == 1
 			@test magnetisation(sys3) == -1
 			@test magnetisation(sys4) == 0
-			L=4; sys1 = IsiSys(L)
-			Z = partition_sum_Z(sys1, 0.45)
-			prob_sum = 0
-			for i in 0:2^(L^2)-1
-				prob_sum += P_β(nth_config(sys1, i), 0.45, Z, sys1)
+			
+			function prob_sum(i, β=0.5)
+				sysi=IsiSys(i)
+				Z=partition_sum_Z(sysi, β)
+				s = 0
+				for i in 0:2^(i^2)-1
+					s += P_β(nth_config(sysi, i), β, Z, sysi)
+				end
+				return s
 			end
-			@test prob_sum ≈ 1
-
+			@test prob_sum(2) ≈ 1
+			@test prob_sum(3) ≈ 1
+			@test prob_sum(4) ≈ 1
 		end
 		@testset "solver utils" begin
 			inds1 = [(1,1), (2,2)]
@@ -42,6 +47,24 @@ function runtests()
 			value1 = split_grid(sys5)
 			test1 = (Set(value1[1]) == Set(inds1) && Set(value1[2]) == Set(inds2)) || (Set(value1[1]) == Set(inds2) && Set(value1[2]) == Set(inds1))
 			@test test1
+		end
+
+		@testset "spinchange energy" begin
+			function spinchange_test()
+				sys1 = IsiSys(4)
+				ind = (rand(1:sys1.L), rand(1:sys1.L))
+				
+				grid2 = sys1.grid |> copy
+				grid2[ind...] = 1-sys1.grid[ind...]
+				
+				sys2 = IsiSys(grid=grid2)
+				return energy(sys2) - energy(sys1) == spinchange_energy(sys1, ind)
+			end
+			
+			@test spinchange_test()
+			@test spinchange_test()
+			@test spinchange_test()
+			@test spinchange_test()
 		end
 	end
 end

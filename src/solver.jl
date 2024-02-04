@@ -63,7 +63,7 @@ function multihit_step!(sys::IsiSys, β::Float64, inds::Any, N_try::Int=1)
 
 		i, j = ij
 
-		for t in 1:N_try										# Multihit-Parameter
+		for _ in 1:N_try										# Multihit-Parameter
 			s1 = rand((0,1))										# Wähle rdm neue Spinausrichtung
 			dH = spinchange_energy(sys, ij) 					# Berechne Energieänderung bei Spininversion
 

@@ -10,7 +10,7 @@ function installed()
 	return installs
 end
 # Check if packages are installed, else install them
-Packages = ["Plots", "Statistics", "BenchmarkTools", "Random", "QuadGK", "ThreadsX", "ProfileView"]
+Packages = ["Plots", "Statistics", "BenchmarkTools", "Random", "QuadGK", "ThreadsX", "ProfileView", "HTTP"]
 installed_Packages = keys(installed())
 for Package in Packages
 	if !(Package in installed_Packages)
@@ -40,15 +40,19 @@ include("test/runtests.jl")
 
 println("Threads: ", Threads.nthreads())
 
-runtests(); println()
+# runtests(); println()
 
 
 
 
 # A2()
 
-A3b()
-
+A3a()
+# sys = IsiSys(64)
+# res = solve_IsiSys(sys, heatbath_step!, 0.8*0.4406868, 200, 3, eval_interv=1)
+# x = eachindex(res[2])
+# ys = [res[2], res[3]]
+# display(plot(x, ys, label=["ϵ" "m"], title="Multihit Metropolis for L=$(sys.L)", xlabel="N", dpi=300))
 
 
 

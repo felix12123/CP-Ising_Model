@@ -8,8 +8,8 @@
 
 function A3a()
 	println("Task 3a ------------------------------------------")
-	N = 1000
-	sys = IsiSys(128)
+	N = 20_000
+	sys = IsiSys(32)
 	βs = 0:0.05:1#; βs = βs[2:end-1]
 	ϵs = similar(βs)
 	ms = similar(βs)
@@ -19,10 +19,10 @@ function A3a()
 	for i in eachindex(βs)
 		progress_bar(i/length(βs))
 		β = βs[i]
-		sys1, x1, x2, x3 = solve_IsiSys(sys, multihit_step!, β, N, 3, eval_interv=N)
-		ϵs[i] = x1[1]
-		ms[i] = x2[1] |> abs
-		cs[i] = x3[1]
+		sys1, x1, x2, x3 = solve_IsiSys(sys, heatbath_step!, β, N, 3, eval_interv=N÷10)
+		ϵs[i] = x1[end]
+		ms[i] = x2[end] |> abs
+		cs[i] = x3[end]
 	end
 
 	println("creating plots")
@@ -30,13 +30,16 @@ function A3a()
 		mkdir("media/A3")
 	end
 
-	plot(βs, ϵs, label="⟨ϵ⟩", title="Multihit Metropolis for L=$(sys.L)", xlabel="β", ylabel="⟨m⟩", dpi=300)
+	plot(βs, ϵs, label="⟨ϵ⟩", title="Multihit Metropolis for L=$(sys.L)",
+		xlabel="β", ylabel="⟨ϵ⟩", dpi=300)
 	savefig("media/A3/A3a_energy_multi")
 
-	plot(βs, ms, label="⟨|m|⟩", title="Multihit Metropolis for L=$(sys.L)", xlabel="β", ylabel="⟨m⟩", dpi=300)
+	plot(βs, ms, label="⟨|m|⟩", title="Multihit Metropolis for L=$(sys.L)", 
+		xlabel="β", ylabel="⟨m⟩", dpi=300)
 	savefig("media/A3/A3a_abs_mag_multi")
 
-	plot(βs, cs, label="⟨c⟩", title="Multihit Metropolis for L=$(sys.L)", xlabel="β", ylabel="⟨m⟩", dpi=300)
+	plot(βs, cs, label="⟨c⟩", title="Multihit Metropolis for L=$(sys.L)",
+		xlabel="β", ylabel="⟨c⟩", dpi=300)
 	savefig("media/A3/A3a_c_multi")	
 end
 
@@ -60,6 +63,8 @@ function A3b()
 		sys1, _, _, _ = solve_IsiSys(sys, multihit_step!, β, N, N_try)
 		ϵs[i]      = energy_dens(sys1)
 		ms[i]      = magnetisation(sys1) |> abs
+		display(sys1.grid)
+		display(magnetisation(sys1))
 		m2s[i]     = ms[i]^2
 		ϵs_ana[i]  = energy_dens_ana(sys1, β)
 		ms_ana[i]  = abs_mag_ana(sys1, β)
