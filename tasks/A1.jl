@@ -1,3 +1,4 @@
+using Distributions
 using SpecialFunctions
 using Plots
 
@@ -31,9 +32,23 @@ end
 
 
 function rand_num_distr(func::Function, inv_integ_func::Function, N::Int=1, intervall=(0.0, 1.0))
-	println("func(intervall) = ", func.(intervall))
-	rnd = rand(N) #.* (func(intervall[2]) - func(intervall[1])) .+ func(intervall[1])
+	rnd = rand(N)
 	inv_integ_func.(rnd)
+end
+
+function MC_integrator(f::Function, a::Number, b::Number, N::Int=1_000_000)
+	# Generate random numbers from the standard normal distribution
+	normal_dist = Normal()
+	random_numbers = rand(normal_dist, N)
+
+	# Transform the random numbers to the integration range [a, b]
+	transformed_numbers = (b - a) .* random_numbers .+ (a + b) / 2
+
+	# Evaluate the function at each random number
+	g_values = f.(transformed_numbers)
+
+# Estimate the integral using Monte Carlo integration
+	return mean(g_values) * (b - a)
 end
 
 
@@ -49,7 +64,6 @@ function A1_1()
 		end
 	end
 	
-	stds = std(pis, dims=2)
 	mean_errors = mean(abs.(pis .- pi) ./ pi, dims=2)
 	
 	
@@ -60,40 +74,33 @@ end
 function A1_2()
 	# Random number generator of the form exp(-t^2 / 2) ==================================================
 	# we want that, because we want to integrate ∫_-∞^∞ exp(-t^2 / 2) dt
-	# To do that, we need the inverse function:
-	# y = 1/(σ sqrt(2π)) * exp(-1/2 * (x - μ)^2 / σ^2)
-	# y * (σ sqrt(2π)) = exp(-1/2 * (x - μ)^2 / σ^2)
-	# -2σ^2 * ln(y * σ * sqrt(2π)) = (x - μ)^2
-	# ± sqrt(-2σ^2 * ln(y * σ * sqrt(2π))) + μ = x
+	# To do that, we need the inverse integral of the gaussian:
 
 	gauss_func(μ=0, σ=1) = x -> 1/(σ * sqrt(2π)) * exp(-1/2 * (x - μ)^2 / σ^2)
-	inv_integ_gauss_func(μ=0, σ=1) = y -> SpecialFunctions.erfcinv(y) * σ * sqrt(2) + μ
-	# inv_gauss_func(μ=0, σ=1) = y -> return try sqrt(-2σ^2 * log(y * σ * sqrt(2π))) + μ catch NaN end
+	inv_integ_gauss_func(μ=0, σ=1) = y -> rand((-1, 1)) * SpecialFunctions.erfcinv(y) * σ * sqrt(2) + μ
 
-	# x = 0:0.001:0.3
-	# y1 = inv_gauss_func().(x)
-	# y2 = gauss_func().(x)
-	# display.([y1, y2])
-	# plt = plot(x, y2)
-	# plot!(x, y1)
-	# display(plt)
-	# return
 
-	func(x) = exp(-x^2 / 2)
-	N = 1000000
-	f1 = gauss_func()
-	f2 = inv_integ_gauss_func()
-	f3 = x -> 2x
-	f4 = x -> x/2
-	rnds = rand_num_distr(f1, f2, N, (1, 4))
+	# we want to integrate the function exp(-t^2 / 2) from -∞ to ∞
+	# we can do that by generating random numbers from the distribution of exp(-t^2 / 2)
+	# the standard deviation of the distribution is 1, so we can use the inverse integral of the gaussian.
+	# we have to multiply the result by sqrt(2π) to get the correct result
 
-	plt = histogram(rnds)
-	# plot!([1:0.01:4], sqrt(2pi)*2e4 .* gauss_func(1).(1:0.01:4))
-	display(plt)
+	N = 1_000_000
+	f1 = x -> gauss_func()(x)
+	f2 = x -> inv_integ_gauss_func()(x)
+	# f1 = x -> gauss_func()(x)
+	# f2 = x -> inv_integ_gauss_func()(x)
+	rnds = rand_num_distr(f1, f2, N)
+	plt = histogram(rnds, bins=100, label="Random numbers", title="Random numbers from exp(-t^2 / 2)", xlabel="t", ylabel="count", dpi=300, legend=:topleft)
+	plot!(twinx(), minimum(rnds):0.01:maximum(rnds), x -> f1(x), label="exp(-t^2 / 2)", color=:red, linewidth=2, legend=:topright, ylims=(0, :auto))
+
+	savefig(plt, "media/A1_exp_rnd")
+
+	println("Integral = ", MC_integrator(x -> exp(-x^2 / 2), -1000, 1000, N), " (Monte Carlo)")
 end
 
 
 function A1()
 	A1_1()
-	# A1_2()
+	A1_2()
 end
