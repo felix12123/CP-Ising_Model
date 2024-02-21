@@ -96,16 +96,22 @@ multihit_step!(sys::IsiSys, β::Float64, N_try::Int=1) = multihit_step!(sys, β,
 # updates elements of "sys" that are in "inds"
 function heatbath_step!(sys::IsiSys, β::Float64, inds, N_try::Int=1)
 	
+	J::Float64 = sys.J
+	Js::Matrix{Float64} = [0.0 J 0.0; J 0.0 J; 0.0 J 0.0]
+	δ::Float64 = 0.0
+	k::Float64 = 0.0
+	z::Float64 = 0.0
+	q::Float64 = 0.0
+	i::Int = 0
+	j::Int = 0
+	
 	for ij in inds
-
 		# Vorberietung für Berechnung von δ
-		i = ij[1]
-		j = ij[2]
-		J = sys.J .* [0 1 0; 1 0 1; 0 1 0]
-		region = @view sys.grid[mod.((i-1:i+1) .- 1, sys.L) .+ 1, mod.((j-1:j+1) .- 1, sys.L) .+ 1]
+		i, j = ij
+		region = @view sys.grid[mod1.(i-1:i+1, sys.L), mod1.(j-1:j+1, sys.L)]
 		
 		# berechnung der einzelnen größen, um festzustellen, ob Spin auf 1 oder -1 gestzt wird.
-		δ = sum((region .* 2 .- 1) .* J)
+		δ = sum((region .* 2 .- 1) .* Js)
 		k = β * (sys.J * δ + sys.h)
 		z = 2 * cosh(k)
 		q = exp(-k) / z
