@@ -5,33 +5,47 @@ using DataFrames
 
 # Noch offene Fragen: 1) Ist N_try optimal gewählt?
 
-
-
+function filter_close(xs::Vector{<:Real}, thresh::Real=0.005)::Vector{Real}
+	xs = sort(unique(xs)) |> copy
+	i=2
+	while i <= length(xs)
+		if abs(xs[i] - xs[i-1]) < thresh
+			xs[i] = (xs[i] + xs[i-1]) / 2
+			deleteat!(xs, i-1)
+		end
+		i += 1
+	end
+	return xs
+end
+# Time for 4 cores and 3 betas and multithreading activated in different places:
+# 35.7 None
+# 29.9 both
+# 17.4 for loop
+# 27.5 solver
 function A3a()
 	println("Task 3a ------------------------------------------")
+	# simulation parameters
+	β_crit = 0.4406868
 	L = 128
+
+	# we want more betas around the critical beta
 	βs = 0:0.025:1
-	Ns = [βs[i]<0.6 ? 3_500 : 2_000 for i in eachindex(βs)]
-	ϵs = similar(βs)
-	ms = similar(βs)
-	
+	βs = vcat(βs, range(β_crit - 0.025, β_crit + 0.025, length=10)) |> sort |> unique |> filter_close
+
+	Ns = [0.35 < βs[i] < 0.55 ? 1_500 : 750 for i in eachindex(βs)]
+	ϵs = zeros(Float64, size(βs))
+	ms = zeros(Float64, size(βs))
+
 	println("starting evaluation")
-	for i in eachindex(βs)
-		progress_bar(i/length(βs))
+	progress_bar(0)
+	Threads.@threads for i in eachindex(βs)
 		β = βs[i]
-		_, x1, x2 = solve_IsiSys(IsiSys(L, state=:up), multihit_step!, β, Ns[i], 5)
+		_, x1, x2 = solve_IsiSys(IsiSys(L, state=:up), multihit_step!, β, Ns[i], 10)
 		ϵs[i] = x1[19*end÷20:end] |> mean
 		ms[i] = x2[19*end÷20:end] .|> abs |> mean
-		if ms[i] < 0.5 && β > 0.5
-			println("β = $β, ⟨m⟩ = $(ms[i])")
-			display(plot(x2))
-		end
+		progress_bar(sum(1 .- iszero.(ms))/length(βs))
 	end
-# solve_IsiSys(IsiSys(128), multihit_step!, 0.5, 5_000, 3, eval_interv=20)
-	println("creating plots")
-	if !isdir("media/A3")
-		mkdir("media/A3")
-	end
+
 
 	plot(βs, ϵs, label="⟨ϵ⟩", title="Multihit Metropolis for L=$(L)",
 		xlabel="β", ylabel="⟨ϵ⟩", dpi=300)
@@ -41,8 +55,8 @@ function A3a()
 		xlabel="β", ylabel="⟨m⟩", dpi=300)
 	savefig("media/A3/A3a_abs_mag_multi")
 
-	cs = diff(ϵs) ./ diff(βs)
-	plot(βs[1:end-1], cs, label="⟨c⟩", title="Multihit Metropolis for L=$(L)",
+	cs = spec_heat_cap(βs, runmean(ϵs, 5))
+	plot(βs, cs, label="⟨c⟩", title="Multihit Metropolis for L=$(L)",
 		xlabel="β", ylabel="⟨c⟩", dpi=300)
 	savefig("media/A3/A3a_c_multi")	
 end
@@ -50,7 +64,7 @@ end
 function A3b()
 	# simulation parameters
 	β = 0.4406868
-	Ls = [4, 8, 32, 64]
+	Ls = [4, 8, 32]
 	N = 200_000
 	N_try = 100
 
@@ -63,9 +77,9 @@ function A3b()
 	m2s_ana = zeros(Float64, size(Ls))
 	
 	for i in eachindex(Ls)
-		sys = IsiSys(Ls[i])
+		sys = IsiSys(Ls[i], state=:up)
 		sys1, ess, mss = solve_IsiSys(sys, multihit_step!, β, N, N_try)
-		therm_time = 2*get_avg_therm_time(Ls[i], β, multihit_step!, N, N_try)
+		therm_time = 200
 		
 		ϵs[i]      = mean(ess[therm_time:therm_time:end])/-2
 		ms[i]      = abs(mean(mss[therm_time:therm_time:end]))

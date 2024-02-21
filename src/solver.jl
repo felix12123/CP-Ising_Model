@@ -52,7 +52,7 @@ end
 # Multihit Metropolis ============================================================================================
 
 # updates elements of "sys" that are in "inds"
-function multihit_step!(sys::IsiSys, β::Float64, inds::Any, N_try::Int=1)
+function multihit_step!(sys::IsiSys, β::Number, inds::Any, N_try::Int=1)
 	lookup_arg::Vector{Float64} = []
 	lookup_exp::Vector{Float64} = []
 	
@@ -133,9 +133,9 @@ function equal_partition(V::Vector, parts::Int64)
 	return [V[range] for range in ranges]
 end
 
-function solve_IsiSys(sys::IsiSys, stepper::Function, β::Float64, N::Int=1_000, N_try::Int=3; eval_interv::Int=1)
-	threads = min(Threads.nthreads(), *(size(sys.grid)...) ÷	2)
-	sys = deepcopy(sys) # passed system should not be changed	
+function solve_IsiSys(sys::IsiSys, stepper::Function, β::Real, N::Int=1_000, N_try::Int=3; eval_interv::Int=1, threads::Int=1)
+	threads = min(Threads.nthreads(), *(size(sys.grid)...) ÷	2, threads)
+	sys = deepcopy(sys) # passed system should not be changed
 	inds = Vector{Vector{NTuple{2, Int}}}
 	
 	# containers for measurements
