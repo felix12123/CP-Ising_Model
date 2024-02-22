@@ -135,7 +135,6 @@ function solve_IsiSys(sys::IsiSys, stepper::Function, β::Real, N::Int=1_000, N_
 	# containers for measurements
 	energy_dens_i   = zeros(Float64, ceil(Int, N/eval_interv))
 	magnetisation_i = zeros(Float64, ceil(Int, N/eval_interv))
-	spec_heat_i     = zeros(Float64, ceil(Int, N/eval_interv))
 
 	for i in 1:N
 		inds1, inds2 = split_grid(sys) # we have to split the grid, to avoid a data race
@@ -153,25 +152,8 @@ function solve_IsiSys(sys::IsiSys, stepper::Function, β::Real, N::Int=1_000, N_
 		if i%eval_interv == 0
 			energy_dens_i[ceil(Int, i / eval_interv)] = energy_dens(sys)
 			magnetisation_i[ceil(Int, i / eval_interv)] = magnetisation(sys)
-			# spec_heat_i[ceil(i, eval_interv)] = spec_heat(sys) # needs to be implemented TODO
 		end
 	end
-	return sys, energy_dens_i, magnetisation_i, spec_heat_i
+	return sys, energy_dens_i, magnetisation_i
 end
 
-
-
-
-function multihit_metropols_algo_slow(sys::IsiSys, β::Float64, N::Int=1_000, N_try::Int=3)
-	sys = deepcopy(sys) # passed system should not be changed
-	energy_dens_i   = zeros(Float64, N)
-	magnetisation_i = zeros(Float64, N)
-	spec_heat_i     = zeros(Float64, N)
-	for i in 1:N
-		multihit_step!(sys, β, N_try)
-		energy_dens_i[i] = energy_dens(sys)
-		magnetisation_i[i] = magnetisation(sys)
-		# spec_heat_i[i] = spec_heat(sys) # needs to be implemented TODO
-	end
-	return sys, energy_dens_i, magnetisation_i, spec_heat_i
-end
