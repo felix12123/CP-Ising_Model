@@ -48,39 +48,45 @@ function A2()
 		mkdir("media/A2")
 	end
 	
-	# Create plots for each gridsize
+	# create plots for energy
+	e_plt = plot(title="Energy Density", xlabel="β", ylabel="⟨ϵ⟩", dpi=300)
 	for i in eachindex(Ls)
 		L = Ls[i]
+		if L == 2
+			plot!(e_plt, βs, [ϵs[:,i], ϵs_ana[:,i]], label=["L=$L" "analytic ϵ for L=$L"], linestyle=[:solid :dash])
+		else
+			plot!(e_plt, βs, ϵs[:,i], label="L=$L")
+		end
+	end
+	savefig("media/A2/A2_energy")
 
+	# create plots for magnetisation
+	m_plt = plot(title="Magnetisation", xlabel="β", ylabel="⟨m⟩", dpi=300)
+	for i in eachindex(Ls)
 		tick_end   = round(1.05*minimum(ms[:, i]), sigdigits=2)
 		tick_start = round(1.05*maximum(ms[:, i]), sigdigits=2)
 		yticks = round.(tick_start:(tick_end - tick_start)/4:tick_end, sigdigits=3)
 		yticks = (yticks, string.(yticks))
-		if L == 2
-			plot(βs, [ms[:,i], ms_ana[:,i]], label=["mean m", "analytic m"], title="magnetisation for L=$L", xlabel="β", dpi=300, yticks=yticks, linestyle=[:solid :dash])
-		else
-			plot(βs, ms[:,i], label="mean m", title="magnetisation for L=$L", xlabel="β", dpi=300, yticks=yticks)
-		end
-		savefig("media/A2/A2_mag_L_$L")
-		progress_bar((size(Ls, 1) * (i-1)+1) / (3*length(Ls)))
 
+		L = Ls[i]
 		if L == 2
-			plot(βs, [abs_m[:,i], abs_m_ana[:,i]], label=["mean |m|" "analytic |m|"], title="absolute magnetisation for L=$L", xlabel="β", dpi=300, linestyle=[:solid :dash])
+			plot!(m_plt, βs, [ms[:,i], ms_ana[:,i]], label=["L=$L" "analytic m for L=$L"], linestyle=[:solid :dash], yticks=yticks)
 		else
-			plot(βs, abs_m[:,i], label="mean |m|", title="absolute magnetisation for L=$L", xlabel="β", dpi=300)
+			plot!(m_plt, βs, ms[:,i], label="L=$L", yticks=yticks)
 		end
-		savefig("media/A2/A2_absmag_L_$L")
-		progress_bar((size(Ls, 1) * (i-1)+2) / (3*length(Ls)))
-		
-		# tick_start = round(1.05*minimum(ms[:, i]), sigdigits=3)
-		# tick_end   = round(1.05*maximum(ms[:, i]), sigdigits=3)
-		# yticks = tick_start:(tick_end - tick_start)/4:tick_end
-		if L == 2
-			plot(βs, [ϵs[:,i], ϵs_ana[:,i]], label=["mean ϵ" "analytic ϵ"], title="energy density for L=$L", xlabel="β", dpi=300, linestyle=[:solid :dash])
-		else
-			plot(βs, ϵs[:,i], label="mean ϵ", title="energy density for L=$L", xlabel="β", dpi=300)
-		end
-		savefig("media/A2/A2_energy_L_$L")
-		progress_bar((size(Ls, 1) * (i-1)+3) / (3*length(Ls)))
 	end
+	savefig("media/A2/A2_mag")
+
+	# create plots for absolute magnetisation
+	abs_m_plt = plot(title="Absolute Magnetisation", xlabel="β", ylabel="⟨|m|⟩", dpi=300)
+	for i in eachindex(Ls)
+		L = Ls[i]
+		if L == 2
+			plot!(abs_m_plt, βs, [abs_m[:,i], abs_m_ana[:,i]], label=["L=$L" "analytic |m| for L=$L"], linestyle=[:solid :dash])
+		else
+			plot!(abs_m_plt, βs, abs_m[:,i], label="L=$L")
+		end
+	end
+	savefig("media/A2/A2_absmag")
+
 end
