@@ -16,11 +16,11 @@ end
 # (5.19)
 function energy_dens_ana(sys::IsiSys, β::Float64)
 	J = sys.J
-	2 * J - J * coth(2*β*J) * (1 + (2 * tanh(2*β*J)^2 - 1) * 2/pi * K(ξ(sys, β)))
+	-(2 * J - J * coth(2*β*J) * (1 + (2 * tanh(2*β*J)^2 - 1) * 2/pi * K(ξ(sys, β))))
 end
 
 function energy_dens_ana_L2(β)
-	2sinh(4β)/(cosh(4β) + 3)
+	-2sinh(4β)/(cosh(4β) + 3)
 end
 
 function abs_mag_ana_L2(β)
