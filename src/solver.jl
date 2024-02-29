@@ -117,7 +117,7 @@ function heatbath_step!(sys::IsiSys, β::Float64, inds, N_try::Int=1)
 		q = exp(-k) / z
 
 		# je nach ergebnis der Berechnung wird die Spinposition gesetzt
-		(rand() < q) ? sys.grid[CartesianIndex(i,j)] = true : sys.grid[CartesianIndex(i,j)] = false
+		(rand() < q) ? sys.grid[CartesianIndex(i,j)] = false : sys.grid[CartesianIndex(i,j)] = true
 	end
 end
 
@@ -143,6 +143,12 @@ function solve_IsiSys(sys::IsiSys, stepper::Function, β::Real, N::Int=1_000, N_
 	magnetisation_i = zeros(Float64, ceil(Int, N/eval_interv))
 
 	for i in 1:N
+		# every "eval_interv" we save some measurements
+		if mod1(i, eval_interv) == 1
+			energy_dens_i[ceil(Int, i / eval_interv)] = energy_dens(sys)
+			magnetisation_i[ceil(Int, i / eval_interv)] = magnetisation(sys)
+		end
+		
 		inds1, inds2 = split_grid(sys) # we have to split the grid, to avoid a data race
 		inds = equal_partition(inds1, threads) # the grid is split into "threads" roughly evenly sized chunks for each thread to update 
 		Threads.@threads for thread in 1:threads
@@ -152,12 +158,6 @@ function solve_IsiSys(sys::IsiSys, stepper::Function, β::Real, N::Int=1_000, N_
 		inds = equal_partition(inds2, threads)
 		for thread in 1:threads
 			stepper(sys, β, inds[thread], N_try) #could create problems, due to simultaneous writing on sys.grid.
-		end
-
-		# every "eval_interv" we save some measurements
-		if i%eval_interv == 0
-			energy_dens_i[ceil(Int, i / eval_interv)] = energy_dens(sys)
-			magnetisation_i[ceil(Int, i / eval_interv)] = magnetisation(sys)
 		end
 	end
 	return sys, energy_dens_i, magnetisation_i

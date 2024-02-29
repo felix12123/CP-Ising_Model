@@ -1,41 +1,51 @@
-function A4a()
+function A4a(;test::Bool=true)
 	println("Task 4a ------------------------------------------")
 	# first part of A4a ----------------------------------------
 	# simulation parameters
 	β_crit = 0.4406868
-	L = 128
+	if test
+		L = 128
+		βs = 0:0.1:1
+		Ns = [0.35 < βs[i] < 0.55 ? 2_000 : 1_000 for i in eachindex(βs)]
+	else
+		L = 128
+		βs = 0:0.01:1
+		# we may want more betas around the critical beta
+		# βs = vcat(βs, range(β_crit - 0.025, β_crit + 0.025, length=10)) |> sort |> unique |> filter_close
+		Ns = [0.35 < βs[i] < 0.55 ? 4_000 : 3_000 for i in eachindex(βs)]
+	end
 
-	# we want more betas around the critical beta
-	βs = 0:0.025:1
-	βs = vcat(βs, range(β_crit - 0.025, β_crit + 0.025, length=10)) |> sort |> unique |> filter_close
-	
-	Ns = [0.35 < βs[i] < 0.55 ? 2_000 : 1_000 for i in eachindex(βs)]
+	# containers for recorded data
 	ϵs = zeros(Float64, size(βs))
 	ms = zeros(Float64, size(βs))
 
 	println("starting evaluation")
 	progress_bar(0)
 	Threads.@threads for i in eachindex(βs)
-		β = βs[i]
-		_, x1, x2 = solve_IsiSys(IsiSys(L, state=:up), heatbath_step!, β, Ns[i])
-		ϵs[i] = x1[19*end÷20:end] |> mean |> abs
-		ms[i] = x2[19*end÷20:end] .|> abs |> mean
+		# βs[i] = 
+		_, x1, x2 = solve_IsiSys(IsiSys(L, state=:up), heatbath_step!, βs[i], Ns[i])
+		ϵs[i] = x1[end÷2:end] |> mean
+		ms[i] = x2[end÷2:end] .|> abs |> mean
 		progress_bar(sum(1 .- iszero.(ms))/length(βs))
+		if βs[i] > 0.5 && ms[i] < 0.5
+			plot(x2, label="β = $(βs[i])", title="Magnetisation for L=$(L)", xlabel="MC steps", ylabel="|m|", dpi=300) |> display
+		end
 	end
+	progress_bar(1)
 	println("β variation done, creating plots...")
 
 	plot(βs, ϵs, label="⟨ϵ⟩", title="Heatbath Algorithm for L=$(L)",
 		xlabel="β", ylabel="⟨ϵ⟩", dpi=300)
-	savefig("media/A4/A4a_energy_multi")
+	savefig("media/A4/A4a_energy")
 
 	plot(βs, ms, label="⟨|m|⟩", title="Heatbath Algorithm for L=$(L)", 
 		xlabel="β", ylabel="⟨m⟩", dpi=300)
-	savefig("media/A4/A4a_abs_mag_multi")
+	savefig("media/A4/A4a_abs_mag")
 
-	cs = spec_heat_cap(βs, runmean(ϵs, 5))
+	cs = spec_heat_cap(βs, runmean(ϵs, 3))
 	plot(βs, cs, label="⟨c⟩", title="Heatbath Algorithm for L=$(L)",
 		xlabel="β", ylabel="⟨c⟩", dpi=300)
-	savefig("media/A4/A4a_c_multi")	
+	savefig("media/A4/A4a_c")	
 
 	println("plots created, starting second part of A4a")
 
@@ -74,11 +84,102 @@ function A4a()
 	plt2 = scatter(Ls, [ms, ms_ana], ylims=(0,:auto), label=["simulated" "analytical"], xlabel="L", ylabel="|m|", title="Magnetisation for β = 0.4406868")
 	plt3 = scatter(Ls, [m2s, m2s_ana], ylims=(0,:auto), label=["simulated" "analytical"], xlabel="L", ylabel="|m^2|", title="squared Magnetisation for β = 0.4406868")
 	
-	savefig(plt1, "media/A4/A4b_e")
-	savefig(plt2, "media/A4/A4b_m")
-	savefig(plt3, "media/A4/A4b_m2")
+	# savefig(plt1, "media/A4/A4b_e")
+	# savefig(plt2, "media/A4/A4b_m")
+	# savefig(plt3, "media/A4/A4b_m2")
 
 	println("A4a done, displaying results of second part:")
 	df = DataFrame(L=Ls, ϵ=ϵs, ϵ_ana=ϵs_ana, m=ms, m_ana=ms_ana, m2=m2s, m2_ana=m2s_ana)
 	display(df)
+end
+
+
+function A4b(;test::Bool=true)
+	println("starting A4b ------------------------------------------")
+	# simulation parameters
+	# choose β in the ferromagnetic phase:
+	β = 0.7
+	if test
+		L = 16
+		h0 = 1
+		h_len = 20
+		therm_time = 1500
+		sim_steps = 5000
+	else
+		L = 128
+		h0 = 1
+		h_len = 100
+		therm_time = 3000
+		sim_steps = 1000
+	end
+
+	# two different hs to simulate hysteresis
+	hs1 = range(h0, -h0, length=h_len) |> collect
+	hs2 = reverse(hs1)
+	
+
+	# create containers for recorded data
+	ϵs1 = zeros(Float64, size(hs1))
+	ms1 = zeros(Float64, size(hs1))
+	ϵs2 = zeros(Float64, size(hs2))
+	ms2 = zeros(Float64, size(hs2))
+	
+
+	Threads.@threads for (hs, ϵs, ms) in [(hs1, ϵs1, ms1), (hs2, ϵs2, ms2)]
+		# create system and let it thermalize
+		sys = IsiSys(L, state=hs[1] > 0 ? :up : :down, h=hs[1])
+		sys = solve_IsiSys(sys, heatbath_step!, β, therm_time)[1]
+
+		for i in eachindex(hs)
+			sys.h = hs[i]
+			sys, x1, x2 = solve_IsiSys(sys, heatbath_step!, β, sim_steps, threads=Threads.nthreads())
+			ϵs[i] = x1[end÷2:end] |> mean
+			ms[i] = x2[end÷2:end] |> mean
+		end
+	end
+
+	plt1 = plot([hs1, hs2], [ϵs1, ϵs2], label=["+" "-"], xlabel="h", ylabel="⟨ϵ⟩", dpi=300)
+	plt2 = plot([hs1, hs2], [ms1, ms2], label=["+" "-"], ylabel="⟨m⟩", xlabel="h")
+	plot(plt1, plt2, layout=(1,2), size=(1000, 600), title="Hysteresis for β=$(β)", dpi=300)
+	savefig("media/A4/A4b_energy_hysteresis")
+end
+
+
+function A4c(;test::Bool=true)
+	println("starting A4c ------------------------------------------")
+	# simulation parameters
+	if test
+		L = 8
+		βs = range(0,  1, length=20) |> collect
+		hs = range(-1, 1, length=20) |> collect
+		sim_steps = 500
+	else
+		L = 16
+		βs = range(0,  1, length=100) |> collect
+		hs = range(-1, 1, length=100) |> collect
+		sim_steps = 1500
+	end
+	println("evaluating ", length(βs) * length(hs), " $(L)x$(L) systems")
+
+	# create containers for recorded data
+	ϵs = zeros(Float64, length(βs), length(hs))
+	ms = zeros(Float64, length(βs), length(hs))
+
+	# progress_bar(0)
+	Threads.@threads for (i, j) in CartesianIndices((length(βs), length(hs))) .|> Tuple
+		β = βs[i]
+		h = hs[j]
+		
+		sys = IsiSys(L, state=(h>0 ? :up : :down), h=h)
+		_, e, m = solve_IsiSys(sys, heatbath_step!, β, sim_steps)
+		
+		ϵs[i, j] = e[end÷2:end] |> mean
+		ms[i, j] = m[end÷2:end] |> mean
+		# progress_bar(((j-1)* length(hs) + 1) / (length(βs) * length(hs)))
+	end
+
+	plt1 = heatmap(βs, hs, ϵs, xlabel="β", ylabel="h", title="Energy density", dpi=300, c=cgrad([:orange, :grey]))
+	plt2 = heatmap(βs, hs, ms, xlabel="β", ylabel="h", title="Magnetisation", dpi=300, c=cgrad([:red, :grey, :blue]))
+	plot(plt1, plt2, layout=(1,2), size=(1000, 600), dpi=300, title="L=$(L)")
+	savefig("media/A4/A4c_heatmap")
 end

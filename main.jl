@@ -32,15 +32,18 @@ println("Threads: ", Threads.nthreads())
 # runtests(); println()
 
 
-# A1()
-# A2()
-A3a()
-# A3b()
-# A4a()
+# @time A1( test=false)
+# @time A2( test=false)
+# @time A3a(test=false)
+# @time A3b(test=false)
+# @time A4a(test=false)
+# @time A4b(test=false)
+# @time A4c(test=false)
 
 
 
 if time() - script_start_time > 60 * 5
-	HTTP.request("POST", "https://ntfy.sh/julia_scripts46182355781653856", body="Ising hat fertig kompiliert. Es lief $((time() - script_start_time)÷60) Minuten")
+	HTTP.request("POST", "https://ntfy.sh/julia_scripts46182355781653856",
+		body="Ising hat fertig kompiliert. Es lief $((time() - script_start_time)÷60 |> Int) Minuten")
 end
 nothing;

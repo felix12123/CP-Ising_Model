@@ -22,18 +22,24 @@ end
 # 29.9 both
 # 17.4 for loop
 # 27.5 solver
-function A3a()
+function A3a(;test::Bool=true)
 	println("Task 3a ------------------------------------------")
 	# simulation parameters
 	β_crit = 0.4406868
-	L = 128
+	if test
+		L = 64
+		βs = 0:0.05:1
+		Ns = [0.35 < βs[i] < 0.55 ? 2_000 : 1_000 for i in eachindex(βs)]
+	else
+		L = 128
+		βs = 0:0.01:1
+		# we may want more betas around the critical beta
+		# βs = vcat(βs, range(β_crit - 0.025, β_crit + 0.025, length=10)) |> sort |> unique |> filter_close
+		Ns = [0.35 < βs[i] < 0.55 ? 4_000 : 2_000 for i in eachindex(βs)]
+	end
 
-	# we want more betas around the critical beta
-	βs = 0:0.025:1
-	# βs = vcat(βs, range(β_crit - 0.025, β_crit + 0.025, length=10)) |> sort |> unique |> filter_close
-	# βs = 0:0.1:1
+	
 
-	Ns = [0.35 < βs[i] < 0.55 ? 4_000 : 2_000 for i in eachindex(βs)]
 	ϵs = zeros(Float64, size(βs))
 	ms = zeros(Float64, size(βs))
 
@@ -46,28 +52,37 @@ function A3a()
 		ms[i] = x2[end÷2:end] .|> abs |> mean
 		progress_bar(sum(1 .- iszero.(ms))/length(βs))
 	end
+	progress_bar(1)
 
 
 	plot(βs, ϵs, label="⟨ϵ⟩", title="Multihit Metropolis for L=$(L)",
 		xlabel="β", ylabel="⟨ϵ⟩", dpi=300)
-	savefig("media/A3/A3a_energy_multi")
+	savefig("media/A3/A3a_energy")
 
 	plot(βs, ms, label="⟨|m|⟩", title="Multihit Metropolis for L=$(L)", 
 		xlabel="β", ylabel="⟨m⟩", dpi=300)
-	savefig("media/A3/A3a_abs_mag_multi")
-
-	cs = spec_heat_cap(βs, runmean(ϵs, 5))
+	savefig("media/A3/A3a_abs_mag")
+	global g_ms = copy(ms)
+	cs = spec_heat_cap(βs, runmean(ϵs, 3))
 	plot(βs, cs, label="⟨c⟩", title="Multihit Metropolis for L=$(L)",
 		xlabel="β", ylabel="⟨c⟩", dpi=300)
-	savefig("media/A3/A3a_c_multi")	
+	vline!([β_crit], label="β_crit")
+	savefig("media/A3/A3a_c")	
 end
 
-function A3b()
+function A3b(;test::Bool=true)
 	# simulation parameters
-	β = 0.4406868
-	Ls = [4, 8, 32]
-	N = 200_000
-	N_try = 10
+	if test
+		β = 0.4406868
+		Ls = [4, 8, 32]
+		N = 20_000
+		N_try = 10
+	else
+		β = 0.4406868
+		Ls = [4, 8, 32]
+		N = 200_000
+		N_try = 10
+	end
 
 	# containers for recorded data
 	ϵs      = zeros(Float64, size(Ls))
@@ -91,17 +106,15 @@ function A3b()
 		m2s_ana[i] = ms_ana[i]^2
 		# ["sim" ϵs[i] ms[i] m2s[i] ; "ana" ϵs_ana[i] ms_ana[i] m2s_ana[i]] |> permutedims |> display
 	end
-	plt1 = scatter(Ls, [ϵs, ϵs_ana], ylims=(0,:auto), label=["simulated" "analytical"], xlabel="L", ylabel="ϵ", title="Energy density for β = 0.4406868")
-	plt2 = scatter(Ls, [ms, ms_ana], ylims=(0,:auto), label=["simulated" "analytical"], xlabel="L", ylabel="|m|", title="Magnetisation for β = 0.4406868")
-	plt3 = scatter(Ls, [m2s, m2s_ana], ylims=(0,:auto), label=["simulated" "analytical"], xlabel="L", ylabel="|m^2|", title="squared Magnetisation for β = 0.4406868")
+	# plt1 = scatter(Ls, [ϵs, ϵs_ana], ylims=(0,:auto), label=["simulated" "analytical"], xlabel="L", ylabel="ϵ", title="Energy density for β = 0.4406868")
+	# plt2 = scatter(Ls, [ms, ms_ana], ylims=(0,:auto), label=["simulated" "analytical"], xlabel="L", ylabel="|m|", title="Magnetisation for β = 0.4406868")
+	# plt3 = scatter(Ls, [m2s, m2s_ana], ylims=(0,:auto), label=["simulated" "analytical"], xlabel="L", ylabel="|m^2|", title="squared Magnetisation for β = 0.4406868")
 	
-	savefig(plt1, "media/A3/A3b_e")
-	savefig(plt2, "media/A3/A3b_m")
-	savefig(plt3, "media/A3/A3b_m2")
+	# savefig(plt1, "media/A3/A3b_e")
+	# savefig(plt2, "media/A3/A3b_m")
+	# savefig(plt3, "media/A3/A3b_m2")
 
 	df = DataFrame(L=Ls, ϵ=ϵs, ϵ_ana=ϵs_ana, m=ms, m_ana=ms_ana, m2=m2s, m2_ana=m2s_ana)
 	display(df)
 end
 
-
-# Noch TODO: mag_sq(_ana), specific_heat()

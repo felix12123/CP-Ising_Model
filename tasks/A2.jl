@@ -1,4 +1,4 @@
-function A2()
+function A2(;test=true)
 	# calculate for combination of parameters
 	step = 0.025
 	βs = 0:step:1
