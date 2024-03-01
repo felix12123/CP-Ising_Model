@@ -32,7 +32,7 @@ println("Threads: ", Threads.nthreads())
 # runtests(); println()
 
 
-# @time A1( test=false)
+@time A1( test=false)
 # @time A2( test=false)
 # @time A3a(test=false)
 # @time A3b(test=false)
