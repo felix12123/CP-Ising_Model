@@ -22,7 +22,7 @@ end
 # 29.9 both
 # 17.4 for loop
 # 27.5 solver
-function A3a(;test::Bool=false)
+function A3a(;test::Bool=true)
 	println("Task 3a ------------------------------------------")
 	# simulation parameters
 	β_crit = 0.4406868
@@ -64,7 +64,6 @@ function A3a(;test::Bool=false)
 	savefig("media/A3/A3a_abs_mag")
 	global g_ms = copy(ms)
 	cs = spec_heat_cap(βs, runmean(ϵs, 3))
-	# cs = spec_heat_cap((.- βs .^2), runmean(ϵs, 3))
 	plot(βs, cs, label="⟨c⟩", title="Multihit Metropolis for L=$(L)",
 		xlabel="β", ylabel="⟨c⟩", dpi=300)
 	vline!([β_crit], label="β_crit")

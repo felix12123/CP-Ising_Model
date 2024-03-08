@@ -121,7 +121,7 @@ end
 function spec_heat_cap(βs::Vector{<:Real}, Es::Vector{<:Real})::Vector{<:Real}
 	# k = min(5, length(βs) ÷ 2)
 	# result = derivative(Spline1D(βs, Es; k=k), βs; nu=1)
-	result = .- diff(Es) ./ (diff(βs) .^2)
+	result = diff(Es) ./ diff(βs)
 	append!(result, result[end])
 	return result
 end
