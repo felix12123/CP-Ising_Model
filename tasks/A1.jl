@@ -1,7 +1,6 @@
 using Distributions
 using SpecialFunctions
 using Plots
-using Random
 
 
 function compute_pi(N::Int)::Float64
@@ -41,7 +40,7 @@ end
 
 function A1_1(;test=true)
 	# compute pi "reps" times for different iterations and compare accuracy ==============================
-	reps = 20000
+	reps = 1000
 	iterations = 10 .^ (2:0.2:6) .|> round .|> Int
 	pis = Matrix{Float64}(undef, size(iterations, 1), reps)
 	
