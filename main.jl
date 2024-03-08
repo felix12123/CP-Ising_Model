@@ -47,3 +47,5 @@ if time() - script_start_time > 60 * 5
 		body="Ising hat fertig kompiliert. Es lief $((time() - script_start_time)÷60 |> Int) Minuten")
 end
 nothing;
+
+A3a()
