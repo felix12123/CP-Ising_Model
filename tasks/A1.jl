@@ -1,6 +1,7 @@
 using Distributions
 using SpecialFunctions
 using Plots
+using Random
 
 
 function compute_pi(N::Int)::Float64
@@ -40,7 +41,7 @@ end
 
 function A1_1(;test=true)
 	# compute pi "reps" times for different iterations and compare accuracy ==============================
-	reps = 1000
+	reps = 20000
 	iterations = 10 .^ (2:0.2:6) .|> round .|> Int
 	pis = Matrix{Float64}(undef, size(iterations, 1), reps)
 	
@@ -53,7 +54,7 @@ function A1_1(;test=true)
 	mean_errors = mean(abs.(pis .- pi) ./ pi, dims=2)
 	
 	
-	plt2 = plot(iterations, mean_errors, xscale=:log10, yscale=:log10, title="Avg. Accuracy of MC pi Algorithm", label="", xlabel="Iterations", dpi=300, ylabel="mean relative error")
+	plt2 = scatter(iterations, mean_errors, xscale=:log10, yscale=:log10, title="Avg. Accuracy of MC pi Algorithm", label="", xlabel="Iterations", dpi=300, ylabel="mean relative error")
 	savefig(plt2, "media/A1_MC_pi_mean_error")
 end
 

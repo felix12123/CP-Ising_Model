@@ -1,3 +1,6 @@
+using Measurements
+using RollingFunctions
+
 # splits the grid into 2 subgrids, wich can be parallised. returns 2 sets of indices
 function split_grid1(sys::IsiSys)#::NTuple{2, Vector{CartesianIndex}}
 	if !iseven(sys.L)
@@ -133,7 +136,38 @@ function equal_partition(V::Vector, parts::Int64)
 	return [V[range] for range in ranges]
 end
 
-function solve_IsiSys(sys::IsiSys, stepper::Function, β::Real, N::Int=1_000, N_try::Int=3; eval_interv::Int=1, threads::Int=1)
+function get_thermalisation(xs::Vector{<:Real})
+	winsize = length(xs) ÷ 25
+
+	# calculate the rolling std
+	stds = rollstd(runmean(xs, winsize), winsize)
+
+	# find the first index where the std is smaller than 1e-3
+	τ = findfirst(diff(stds[2:end]) .> 0)
+	if τ === nothing
+		@warn "No thermalisation detected"
+		plt2 = plot(stds[2:end] .|> log10, label="log(std)")
+		plot!(twinx(), diff(stds), color=:red)
+		plot(plot(xs), plt2, size=(800, 500)) |> display
+		return length(xs)
+	end
+	return τ
+end
+
+function eval_data(xs::Vector{<:Real})
+	# detect thermalisation
+	τ_therm = get_thermalisation(xs)
+
+	# calculate auto correlation time
+	τ_act = act(xs)
+
+	data = xs[τ_therm:end]
+	
+	res = mean(data) ± (std(data) / sqrt(length(data) / τ_act))
+	return res
+end
+
+function solve_IsiSys(sys::IsiSys, stepper::Function, β::Real, N::Int=1_000,; N_try::Int=6, eval_interv::Int=1, threads::Int=1, return_hist::Bool=false)
 	threads = min(Threads.nthreads(), *(size(sys.grid)...) ÷	2, threads)
 	sys = deepcopy(sys) # passed system should not be changed
 	inds = Vector{Vector{NTuple{2, Int}}}
@@ -160,6 +194,11 @@ function solve_IsiSys(sys::IsiSys, stepper::Function, β::Real, N::Int=1_000, N_
 			stepper(sys, β, inds[thread], N_try) #could create problems, due to simultaneous writing on sys.grid.
 		end
 	end
-	return sys, energy_dens_i, magnetisation_i
+	
+	if return_hist
+		return sys, eval_data(energy_dens_i), eval_data(magnetisation_i), eval_data(magnetisation_i .^ 2), energy_dens_i, magnetisation_i
+	else	
+		return sys, eval_data(energy_dens_i), eval_data(magnetisation_i), eval_data(magnetisation_i .^ 2)
+	end
 end
 
